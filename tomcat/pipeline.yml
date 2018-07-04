@@ -71,13 +71,11 @@ jobs:
           set -e
           DIR=$(pwd)
           cd ${DIR}/repo
-          COUNT=$(git rev-list --count HEAD)
-          REV=$(git rev-parse --short HEAD)
           export PACK_APP_ZIP=${DIR}/build/ROOT.war
           /packs/builder \
             -buildpacksDir /var/lib/buildpacks \
             -outputMetadata ${DIR}/out/result.json \
-            -outputDroplet ${DIR}/out/hello-servlet-${COUNT}+${REV}.droplet
+            -outputDroplet ${DIR}/out/hello-servlet-$(git rev-parse HEAD).droplet
   - task: create-dockerfile
     config:
       platform: linux

@@ -47,12 +47,10 @@ jobs:
           DIR=$(pwd)
           cd repo
           ln -s $(pwd) /workspace
-          COUNT=$(git rev-list --count HEAD)
-          REV=$(git rev-parse --short HEAD)
           /packs/builder \
             -buildpacksDir /var/lib/buildpacks \
             -outputMetadata ${DIR}/out/result.json \
-            -outputDroplet ${DIR}/out/hello-nodejs-${COUNT}+${REV}.droplet
+            -outputDroplet ${DIR}/out/hello-nodejs-$(git rev-parse HEAD).droplet
   - task: create-dockerfile
     config:
       platform: linux
