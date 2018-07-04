@@ -1,0 +1,83 @@
+resources:
+- name: rootfs
+  type: docker-image
+  source:
+    repository: packs/cf
+    tag: run
+- name: repo
+  type: git
+  source:
+    uri: https://github.com/making/hello-php.git
+    branch: master
+- name: dockerhub
+  type: docker-image
+  source:
+    repository: making/hello-php
+    username: ((registry-username))
+    password: ((registry-password))
+
+jobs:
+- name: build-image
+  plan:
+  - aggregate:
+    - get: repo
+      trigger: true
+    - get: rootfs
+      trigger: true
+      params:
+        save: true
+  - task: build-droplet
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source: 
+          repository: packs/cf
+          tag: build
+      inputs:
+      - name: repo
+      outputs:
+      - name: out
+      run:
+        path: bash
+        args:
+        - -c
+        - |
+          set -e
+          DIR=$(pwd)
+          cd repo
+          ln -s $(pwd) /workspace
+          COUNT=$(git rev-list --count HEAD)
+          REV=$(git rev-parse --short HEAD)
+          /packs/builder \
+            -buildpacksDir /var/lib/buildpacks \
+            -outputMetadata ${DIR}/out/result.json \
+            -outputDroplet ${DIR}/out/hello-php-${COUNT}+${REV}.droplet
+  - task: create-dockerfile
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source:
+          repository: alpine
+          tag: latest
+      inputs:
+      - name: out
+      outputs:
+      - name: image
+      run:
+        path: sh
+        args:
+        - -c
+        - |
+          set -e
+          cp out/*.droplet image/droplet.tgz
+          cat <<'EOF' > image/Dockerfile
+          FROM packs/cf:run
+          ADD droplet.tgz /home/vcap
+          ENTRYPOINT ["/packs/launcher"]
+          EOF
+  - put: dockerhub
+    params:
+      load_base: rootfs
+      build: image
